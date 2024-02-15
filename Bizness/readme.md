@@ -3,12 +3,15 @@
 </p>
 
 
+NB: This walkthrough was written after the box was actually resolved. I will do my best to put myself in the shoes of something who has not pwned it.
+
+NB2: I found this box to be flaky: I had to restart it multiple times when the exploit was not working
 ## Content
 
 [1. Scanning](#scanning)  
 [2. Foothold](#foothold)  
-[3. Privilege escalation](#privilege-escalation)
-
+[3. Privilege escalation](#privilege-escalation)  
+[4. Take aways](#take-aways)
 
 ## Scanning
 
@@ -106,3 +109,33 @@ These manuals investigations yielded nothing worth my attention. I then decide t
 It is always difficult to read the output and find important stuff in its mass. While scrolling, I notice that a repo often comes back: `/opt/ofbiz/**`, pretty interesting as this was our entrypoint. In particular, in the backup files, there is a potential target.
 
 <img src="images/linpeas.png" alt="right" width="800" />
+
+Of course it would have been too easy: this contains nothing. Let's stay here and try to find passwords with `grep -ri "password=" .` (`-r` for recursive search within this repo and `-i` to ignore case on `password`). I receive errors that some files are binary (`.dat`), which we will try to add to our research with the `-a` flag (binary files will be considered as text): `grep -ari "password=" . > res.txt`.  I prefer to download it locally and inspect that in a text editor rather that in the terminal.
+
+There are a lot of passwords for login into OFbiz related apps (look into `.xml` files, beginning with `{SHA}`), but we want login as admin/root. We can try searching for the root keyword within the file: nothing. But then we have multiple matches for admin. We try to ssh to root/admin with `ofbiz`, no luck.
+
+Then we find a hashed password: 
+
+`$SHA$d$uP0_QaVBpDWFeo8-dRzDqRwXQ2I` 
+
+within `opt/ofbiz/runtime/data/derby/ofbiz/seg0/c54d0.dat`. It is quite common to store passwords along their hash algorithm (`$SHA`) and their salt if they have one (`$d`). For those like me that are not familiar with salts (and peppers), you can watch this [nice video](https://www.youtube.com/watch?v=FvstbO787Qo) from mCoding.
+
+As always with hashed password, I consider two common choices: John the Ripper or Hashcat. Let's use the latter.
+
+<img src="images/hashcat1.png" alt="right" width="800" />
+
+Unfortunately, the password hash is not in the correct format, we need a base64 format to feed into hashcat. This means `VAwX1FhVkJwRFdGZW84LWRSekRxUndYUTJJCg==` in our case. But once again the format is not right ...
+
+At this point I had to take a peak into walkthroughs to show me the answer, which pointed me to [this site](https://gchq.github.io/CyberChef/#recipe=Find_/_Replace(%7B'option':'Regex','string':'_'%7D,'/',false,false,false,false)Find_/_Replace(%7B'option':'Regex','string':'-'%7D,'%2B',false,false,false,false)From_Base64('A-Za-z0-9%2B/%3D',false,false)To_Hex('None',0)&input=dVAwX1FhVkJwRFdGZW84LWRSekRxUndYUTJJ)
+
+We had to properly url format the hash, **decode** it from base64 (I was wrongly doing the reverse) and show its hexadecimal representation. Wouah ! Quite a path to take!!
+
+<img src="images/hashcat2.png" alt="right" width="800" />
+
+We can then ssh directly to root with the password `monkeybizness`
+
+## Take aways
+
+The foothold was quite easy as it just involed dirbusting + googling + running a POC. However this can sometimes be flaky and can require a restart of the VM.
+
+The privilege escalation was on another level, much higher than an easy HTB machine (at least if feels to me)! The file containing the password was lost among a huge amount of other files, the password was salted (a first for me) and the correct formatting of it a pain.
