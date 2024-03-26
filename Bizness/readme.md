@@ -55,8 +55,6 @@ Note: In some cases, this page was already display at `https://bizness.htb/contr
 
 ## Foothold
 
-#TODO: can we get version? -> test vulerability  
-
 A quick google search reveals that OFBiz (an Apache planning system) has some serious vulnerabilities for some versions, among which a RCE (CVE-2020-9496) and an authentication bypass (CVE-2023-51467). At this point, I have not been able to find the exact version of the service but we can test the target against these vulnerabilities.
 
 If you wish to skip the CVE details, click [here](#execution).
